@@ -2,11 +2,8 @@ import socket
 import random
 import time
 
-import urllib.request
-import json
-
-import ee
-import folium
+from urllib.request import urlopen
+from json import load
 
 
 # socket: interface de rede de baixo nível;
@@ -14,54 +11,19 @@ import folium
 # time: funções para obter e gerenciar variáveis relacionadas ao tempo;
 # urllib: fornece funções e classes que auxiliam no gerenciamento de URLs;
 # json: gerenciamento de estruturas JSON;
-# ee: funções para geração de mapa;
-# folium: biblioteca que auxilia a criação de mapas leaflet.
-
-# função auxiliar para geração e localização de um mapa
-def map_display(center, dicionario, latitude, longitude, tiles="OpenStreetMap", zoom_start=10):
-    figure = folium.Figure(width=1280, height=800)
-    map = folium.Map(location=center, tiles=tiles, zoom_start=zoom_start, min_zoom=2)
-    for k, v in dicionario.items():
-        if ee.image.Image in [type(x) for x in v.values()]:
-            folium.TileLayer(
-                tiles=v["tile_fetcher"].url_format,
-                attr='Google Earth Engine',
-                overlay=True,
-                name=k
-            ).add_to(map)
-        else:
-            folium.GeoJson(
-                data=v,
-                name=k
-            )
-    map.add_child(folium.LayerControl())
-    map = folium.Map(location=center, tiles=tiles, zoom_start=zoom_start)
-    marker = folium.Marker(location=[latitude, longitude], popup='Test')
-    marker.add_to(map)
-    map = map.add_to(figure)
-    return figure
-
-
-# função para plotar e gerar mapa
-def plot_map(latitude=0, longitude=0):
-    imagem = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR') \
-        .filterDate('2021-01-01', '2022-01-01') \
-        .filterBounds(ee.Geometry.Point(latitude, longitude))
-    mediana = imagem.median()
-    dicionario = {
-        'Mediana': mediana.getMapId({'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 3000})
-    }
-    centro = [latitude, longitude]
-    return map_display(centro, dicionario, latitude, longitude, zoom_start=8)
 
 
 # função que obtém dados de localização baseados no IPv4 recebido
 def get_loc(ipv4=''):
-    request = urllib.request.Request('https://geolocation-db/jsonp/' + ipv4, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(request) as url:
-        data = url.read().decode()
-        data = data.split('(')[1].strip(')')
-        return json.loads(data)
+    url = f'https://geolocation-db.com/json/{ipv4}'
+    resposta = urlopen(url)
+    return load(resposta)
+    # request = urllib.request.Request(
+    #     'https://geolocation-db/jsonp/' + ipv4, headers={'User-Agent': 'Mozilla/5.0'})
+    # with urllib.request.urlopen(request) as url:
+    #     data = url.read().decode()
+    #     data = data.split('(')[1].strip(')')
+    #     return json.loads(data)
 
 
 # função auxiliar para ajudar na exibição de espaços em branco na hora de exibir os dados do trace
@@ -73,15 +35,17 @@ def adicionar_espacos_em_branco(numero_espacos=0):
 
 
 # função auxiliar para exibir o que está ocorrendo no trace
-def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizacao='', erro_conexao=False):
+def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizacao=[], erro_conexao=False):
     message = ''
 
     if erro_conexao:
         if pacotes_enviados == 1:
             if ttl < 10:
-                message = str(ttl) + adicionar_espacos_em_branco(10) + '*' + adicionar_espacos_em_branco(16)
+                message = str(ttl) + adicionar_espacos_em_branco(10) + \
+                    '*' + adicionar_espacos_em_branco(16)
             else:
-                message = str(ttl) + adicionar_espacos_em_branco(9) + '*' + adicionar_espacos_em_branco(16)
+                message = str(ttl) + adicionar_espacos_em_branco(9) + \
+                    '*' + adicionar_espacos_em_branco(16)
         elif pacotes_enviados == 2:
             message = '*' + adicionar_espacos_em_branco(16)
         elif pacotes_enviados == 3:
@@ -96,24 +60,25 @@ def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizac
         pais = 'Não encontrado'
         cidade = 'Não encontrada'
 
-        if localizacao != '' and localizacao['country_name'] != 'Not Found' and localizacao['country_name'] is not None:
+        if localizacao['country_name'] and localizacao['country_name'] != 'Not Found':
             pais = localizacao['country_name']
-        if localizacao != '' and localizacao['city'] != 'Not Found' and localizacao['city'] is not None:
+        if localizacao['city'] and localizacao['city'] != 'Not Found':
             cidade = localizacao['city']
 
         if pacotes_enviados == 1:
             if ttl < 10:
                 message = str(ttl) + adicionar_espacos_em_branco(10) + str(rtt) + ' ms' + \
-                          adicionar_espacos_em_branco(14 - len(str(rtt)))
+                    adicionar_espacos_em_branco(14 - len(str(rtt)))
             else:
                 message = str(ttl) + adicionar_espacos_em_branco(9) + str(rtt) + ' ms' + \
-                          adicionar_espacos_em_branco(14 - len(str(rtt)))
+                    adicionar_espacos_em_branco(14 - len(str(rtt)))
         elif pacotes_enviados == 2:
-            message = str(rtt) + ' ms' + adicionar_espacos_em_branco(14 - len(str(rtt)))
+            message = str(rtt) + ' ms' + \
+                adicionar_espacos_em_branco(14 - len(str(rtt)))
         elif pacotes_enviados == 3:
             message = str(rtt) + ' ms' + adicionar_espacos_em_branco(14 - len(str(rtt))) + '(' + str(ipv4) + ')' + \
-                      adicionar_espacos_em_branco(44 - len(str(ipv4))) + pais + \
-                      adicionar_espacos_em_branco(20 - len(pais)) + cidade + '\n'
+                adicionar_espacos_em_branco(44 - len(str(ipv4))) + pais + \
+                adicionar_espacos_em_branco(20 - len(pais)) + cidade + '\n'
     print(message, end="", flush=True)
 
 
@@ -180,9 +145,10 @@ def trace(route):
     print(f'O IP do host foi encontrado: {ip_dest}')
 
     # imprime informações
-    print(f'Iniciando o TraceRoute para : {route}({ip_dest}), com o máximo de {max_saltos} saltos\n')
-    print('Saltos     RTT 1º Pacote    RTT 2º Pacote    RTT 3º Pacote    Router IP ' +
-          'País                Cidade\n')
+    print(
+        f'Iniciando o TraceRoute para : {route}({ip_dest}), com o máximo de {max_saltos} saltos\n')
+    print('Saltos     RTT 1º Pacote    RTT 2º Pacote    RTT 3º Pacote      Router IP ' +
+          '                                    País                Cidade\n')
 
     # inicia o traceroute
     pacotes_enviados = 0
@@ -236,28 +202,28 @@ def trace(route):
             # calcula o RTT(Round Trip Time)
             rtt = round((end_time - start_time) * 1000, 2)
 
-            print_mensagem_envio(pacotes_enviados, ttl, rtt, router_ip, localizacao)
+            print_mensagem_envio(pacotes_enviados, ttl,
+                                 rtt, router_ip, localizacao)
 
             # se o host de destino foi alcançado e se foi recebido os 3 pacotes enviados
             if endr[0] == ip_dest and pacotes_enviados == 3:
                 print(f'\nChegou no destino: {endr[0]}')
                 if localizacao != '':
-                    return plot_map(localizacao['latitude'], localizacao['longitude'])
+                    print('Chegou!')
                 break
         else:
-            print_mensagem_envio(pacotes_enviados=pacotes_enviados, ttl=ttl, ipv4=router_ip, erro_conexao=True)
+            print_mensagem_envio(
+                pacotes_enviados=pacotes_enviados, ttl=ttl, ipv4=router_ip, erro_conexao=True)
 
         # se os 3 pacotes foram enviados, incrementa o TTL em 1
         if pacotes_enviados == 3:
             ttl += 1
 
         # se para o TTL exceder o número máximo de saltos
-        print('Limite de saltos atingido')
-        break
+        if ttl > max_saltos:
+            print('Limite de saltos atingido')
+            break
 
-
-ee.Authenticate()
-ee.Initialize()
 
 print('''
  /$$$$$$$$                                     /$$$$$$$                        /$$                        
