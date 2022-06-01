@@ -2,28 +2,21 @@ import socket
 import random
 import time
 
-from urllib.request import urlopen
-from json import load
-
+import ipinfo
 
 # socket: interface de rede de baixo nível;
 # random: geração de números aleatórios;
 # time: funções para obter e gerenciar variáveis relacionadas ao tempo;
-# urllib: fornece funções e classes que auxiliam no gerenciamento de URLs;
-# json: gerenciamento de estruturas JSON;
+# ipinfo: api que fornece informações sobre o ip pesquisado
 
 
 # função que obtém dados de localização baseados no IPv4 recebido
-def get_loc(ipv4=''):
-    url = f'https://geolocation-db.com/json/{ipv4}'
-    resposta = urlopen(url)
-    return load(resposta)
-    # request = urllib.request.Request(
-    #     'https://geolocation-db/jsonp/' + ipv4, headers={'User-Agent': 'Mozilla/5.0'})
-    # with urllib.request.urlopen(request) as url:
-    #     data = url.read().decode()
-    #     data = data.split('(')[1].strip(')')
-    #     return json.loads(data)
+def get_details(ipv4=''):
+    token = '068c951f3600fa'
+    handler = ipinfo.getHandler(token)
+    details = handler.getDetails(ipv4)
+
+    return details
 
 
 # função auxiliar para ajudar na exibição de espaços em branco na hora de exibir os dados do trace
@@ -35,7 +28,7 @@ def adicionar_espacos_em_branco(numero_espacos=0):
 
 
 # função auxiliar para exibir o que está ocorrendo no trace
-def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizacao=[], erro_conexao=False):
+def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', details=[], erro_conexao=False):
     message = ''
 
     if erro_conexao:
@@ -52,18 +45,21 @@ def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizac
             if ipv4 != '':
                 message = '*' + adicionar_espacos_em_branco(16) + \
                           '(' + adicionar_espacos_em_branco(44 - len(str(ipv4))) + '*' + \
-                          adicionar_espacos_em_branco(19) + '*\n'
+                          adicionar_espacos_em_branco(19) + '*' + adicionar_espacos_em_branco(19) + '*\n'
             else:
                 message = '*' + adicionar_espacos_em_branco(16) + '*' + adicionar_espacos_em_branco(45) + '*' + \
-                          adicionar_espacos_em_branco(19) + '*\n'
+                          adicionar_espacos_em_branco(19) + '*' + adicionar_espacos_em_branco(19) + '*\n'
     else:
         pais = 'Não encontrado'
-        cidade = 'Não encontrada'
+        cidade = 'Não encontrado'
+        org = 'Não encontrado'
 
-        if localizacao['country_name'] and localizacao['country_name'] != 'Not Found':
-            pais = localizacao['country_name']
-        if localizacao['city'] and localizacao['city'] != 'Not Found':
-            cidade = localizacao['city']
+        if details['country']:
+            pais = details['country']
+        if details['city']:
+            cidade = details['city']
+        if details['org']:
+            org = details['org']
 
         if pacotes_enviados == 1:
             if ttl < 10:
@@ -78,7 +74,7 @@ def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizac
         elif pacotes_enviados == 3:
             message = str(rtt) + ' ms' + adicionar_espacos_em_branco(14 - len(str(rtt))) + '(' + str(ipv4) + ')' + \
                 adicionar_espacos_em_branco(44 - len(str(ipv4))) + pais + \
-                adicionar_espacos_em_branco(20 - len(pais)) + cidade + '\n'
+                adicionar_espacos_em_branco(36 - len(pais)) + cidade + org + '\n'
     print(message, end="", flush=True)
 
 
@@ -146,9 +142,9 @@ def trace(route):
 
     # imprime informações
     print(
-        f'Iniciando o TraceRoute para : {route}({ip_dest}), com o máximo de {max_saltos} saltos\n')
+        f'Iniciando o TraceRoute para : {route} ({ip_dest}), com o máximo de {max_saltos} saltos\n')
     print('Saltos     RTT 1º Pacote    RTT 2º Pacote    RTT 3º Pacote      Router IP ' +
-          '                                    País                Cidade\n')
+          '                                    País                Cidade                AS\n')
 
     # inicia o traceroute
     pacotes_enviados = 0
@@ -196,7 +192,7 @@ def trace(route):
         if endr:
             # localizacao = ''
             # trava de segurança para a biblioteca de localização
-            localizacao = get_loc(endr[0])
+            localizacao = get_details(endr[0])
             router_ip = endr[0]
 
             # calcula o RTT(Round Trip Time)
@@ -233,7 +229,7 @@ print('''
    | $$| $$  \__/ /$$$$$$$| $$      | $$$$$$$$| $$__  $$| $$  \ $$| $$  | $$  | $$    | $$$$$$$$
    | $$| $$      /$$__  $$| $$      | $$_____/| $$  \ $$| $$  | $$| $$  | $$  | $$ /$$| $$_____/
    | $$| $$     |  $$$$$$$|  $$$$$$$|  $$$$$$$| $$  | $$|  $$$$$$/|  $$$$$$/  |  $$$$/|  $$$$$$$
-   |__/|__/      \_______/ \_______/ \_______/|__/  |__/ \______/  \______/    \___/   \_______/                                                                        
+   |__/|__/      \_______/ \_______/ \_______/|__/  |__/ \______/  \______/    \___/   \_______/
 \n\n''')
 
 trace(input('Digite o endereço da rota: '))
