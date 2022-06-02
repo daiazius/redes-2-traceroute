@@ -51,10 +51,12 @@ def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizac
                           adicionar_espacos_em_branco(19) + '*\n'
     else:
         pais = 'Não encontrado'
-        cidade = 'Não encontrado'
+        cidade = 'Não encontrada'
 
-        if localizacao['country_name']:
+        if localizacao['country_name'] and localizacao['country_name'] != 'Not Found':
             pais = localizacao['country_name']
+        if localizacao['city'] and localizacao['city'] != 'Not Found':
+            cidade = localizacao['city']
 
         if pacotes_enviados == 1:
             if ttl < 10:
@@ -68,7 +70,8 @@ def print_mensagem_envio(pacotes_enviados=0, ttl=0, rtt='0s', ipv4='', localizac
                 adicionar_espacos_em_branco(14 - len(str(rtt)))
         elif pacotes_enviados == 3:
             message = str(rtt) + ' ms' + adicionar_espacos_em_branco(14 - len(str(rtt))) + '(' + str(ipv4) + ')' + \
-                adicionar_espacos_em_branco(44 - len(str(ipv4))) + pais + '\n'
+                adicionar_espacos_em_branco(44 - len(str(ipv4))) + pais + \
+                adicionar_espacos_em_branco(20 - len(pais)) + cidade + '\n'
     print(message, end="", flush=True)
 
 
@@ -134,9 +137,9 @@ def trace(route):
 
     # imprime informações
     print(
-        f'Iniciando o TraceRoute para : {route} ({ip_dest}), com o máximo de {max_saltos} saltos\n')
+        f'Iniciando o TraceRoute para : {route}({ip_dest}), com o máximo de {max_saltos} saltos\n')
     print('Saltos     RTT 1º Pacote    RTT 2º Pacote    RTT 3º Pacote      Router IP ' +
-          '                                    País\n')
+          '                                    País                Cidade\n')
 
     # inicia o traceroute
     pacotes_enviados = 0
